@@ -1,0 +1,1 @@
+export default function ChatMessages() { return <div>Messages</div>; }

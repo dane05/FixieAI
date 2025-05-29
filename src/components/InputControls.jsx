@@ -1,0 +1,1 @@
+export default function InputControls() { return <div>Controls</div>; }
