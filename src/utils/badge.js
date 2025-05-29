@@ -1,0 +1,1 @@
+export const badgeLevels = []; export const getBadge = () => 'Newbie';
