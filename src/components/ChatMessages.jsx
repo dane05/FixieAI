@@ -1,3 +1,5 @@
+export default function ChatMessages() { return <div>Messages</div>; }
+
 const ChatMessages = ({ messages }) => {
   return (
     <div className="chat-messages">
