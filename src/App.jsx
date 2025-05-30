@@ -114,7 +114,7 @@ const App = () => {
       setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
 const result = await gemini.generateContent(
-  `You are a friendly and helpful assistant. Engage in a natural conversation and provide concise solutions. User says: "${msg}"`
+  `You are a friendly and helpful assistant in a semiconductor company. Engage in a natural conversation and provide concise solutions. User says: "${msg}"`
 );
         const aiText = result.response.text();
         setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
