@@ -6,12 +6,19 @@ function renderMessage(content) {
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-export default function ChatMessage({ message, isUser }) {
+const ChatMessages = ({ messages }) => {
   return (
-    <div className={`p-4 rounded-lg my-2 max-w-xl ${
-      isUser ? 'bg-blue-500 text-white self-end' : 'bg-gray-200 text-black self-start'
-    }`}>
-      {renderMessage(message)}
+    <div className="chat-messages">
+      {messages.map((msg, index) => (
+        <div
+          key={index}
+          className={`message ${msg.sender === "user" ? "user-message" : "bot-message"}`}
+        >
+          {msg.typing ? <em>{msg.text}</em> : msg.text}
+        </div>
+      ))}
     </div>
   );
-}
+};
+
+export default ChatMessages;
