@@ -5,3 +5,25 @@
 body {
   @apply bg-gradient-to-br from-purple-700 to-blue-500 min-h-screen p-6 flex justify-center;
 }
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.message {
+  max-width: 80%;
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: #dcf8c6;
+}
+
+.bot-message {
+  align-self: flex-start;
+  background-color: #f1f0f0;
+}
