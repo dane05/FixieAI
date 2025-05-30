@@ -113,9 +113,9 @@ const App = () => {
       // 🤖 Gemini fallback
       setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
-        const result = await gemini.generateContent(
-          `You are a technical assistant. Suggest a concise fix for: "${msg}"`
-        );
+const result = await gemini.generateContent(
+  `You are a friendly and helpful assistant. Engage in a natural conversation and provide concise solutions. User says: "${msg}"`
+);
         const aiText = result.response.text();
         setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
         if (!mute) speak(aiText, lang);
