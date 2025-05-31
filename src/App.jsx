@@ -3,6 +3,7 @@ import { db, gemini } from "./firebase";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { cleanMarkdown } from './utils/markdown';
 
+
 import useVoiceRecognition from "./hooks/useVoiceRecognition";
 import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
 import useFuseSearch from "./hooks/useFuseSearch";
@@ -105,49 +106,30 @@ const App = () => {
 
     const match = search(msg)[0];
 
-    // AI fallback with optional knowledge injection
-    setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
+    if (match) {
+      const response = match.solution || match.text;
+      setMessages(prev => [...prev, { text: response, sender: "bot" }]);
+      if (!mute) speak(response, lang);
+      setPendingFeedback(match.text);
+    } else {
+      // 🤖 Gemini fallback
+      setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
+      try {
+const result = await gemini.generateContent(
+  `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. Always reply in clear plain text without markdown. Assume the user works in or is asking about topics relevant to semiconductor technology. Query: "${msg}"`
+);
 
-    try {
-      let prompt;
-      if (match && match.solution) {
-prompt = `
-You are a highly skilled technical assistant for the semiconductor industry.
+let aiText = result.response.text();
 
-The user asked: ${msg}
+// Optional: strip markdown if the model still returns some
+//aiText = await cleanMarkdown(aiText);
 
-Another user previously submitted this solution:
---- START USER SOLUTION ---
-${match.solution}
---- END USER SOLUTION ---
-
-Use the above information to craft a clear, helpful, professional, and enhanced response.
-Respond in Markdown if helpful.
-`;
-
-      } else {
-        prompt = `
-You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry.
-
-Always reply in plain, clear text. Assume the user works in or is asking about topics relevant to semiconductor technology.
-
-Query: "${msg}"
-        `;
+setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
+if (!mute) speak(aiText, lang);
+      } catch (err) {
+        console.error("Gemini error:", err);
+        setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
       }
-
-      const result = await gemini.generateContent(prompt);
-      let aiText = result.response.text();
-
-      // Optional: clean markdown (you can comment this out if unnecessary)
-      aiText = await cleanMarkdown(aiText);
-
-      setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
-      if (!mute) speak(aiText, lang);
-      if (match) setPendingFeedback(match.text);
-
-    } catch (err) {
-      console.error("Gemini error:", err);
-      setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
     }
 
     const updated = { ...user, points: user.points + 5 };
