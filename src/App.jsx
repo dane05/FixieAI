@@ -122,7 +122,7 @@ const result = await gemini.generateContent(
 let aiText = result.response.text();
 
 // Optional: strip markdown if the model still returns some
-aiText = await cleanMarkdown(aiText);
+//aiText = await cleanMarkdown(aiText);
 
 setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
 if (!mute) speak(aiText, lang);
