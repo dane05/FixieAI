@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { db, gemini } from "./firebase";
-import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 
 import useVoiceRecognition from "./hooks/useVoiceRecognition";
 import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
@@ -14,7 +14,7 @@ import ProfileCard from "./components/ProfileCard";
 import Feedback from "./components/Feedback";
 
 const App = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null); // {name, points}
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [faq, setFaq] = useState([]);
@@ -25,6 +25,7 @@ const App = () => {
   const [mute, setMute] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [nameInput, setNameInput] = useState("");
 
   const { speak } = useSpeechSynthesis();
   const { startListening } = useVoiceRecognition((transcript) => {
@@ -34,58 +35,80 @@ const App = () => {
 
   const search = useFuseSearch(faq);
 
-  // Load FAQ knowledge from Firestore
+  // Load knowledge base and suggestions once
   useEffect(() => {
-    const load = async () => {
+    const loadKnowledge = async () => {
       const snap = await getDocs(collection(db, "chatbotKnowledge"));
       const data = snap.docs.map(doc => ({ text: doc.id, ...doc.data() }));
       setFaq(data);
       setSuggestions(data.map(d => d.text).slice(0, 4));
     };
-    load();
+    loadKnowledge();
   }, []);
 
-  // Load chat messages when user changes
+  // Load user messages after login
   useEffect(() => {
-    if (user?.name) {
-      (async () => {
-        const saved = JSON.parse(localStorage.getItem(`chat-${user.name}`));
-        if (saved) setMessages(saved);
-      })();
-    }
-  }, [user?.name]);
+    if (!user) return;
+    const loadMessages = async () => {
+      const saved = localStorage.getItem(`chat-${user.name}`);
+      if (saved) setMessages(JSON.parse(saved));
+      else setMessages([]);
+    };
+    loadMessages();
+  }, [user]);
 
-  // Save messages locally for quick load (optional)
+  // Save messages on change
   useEffect(() => {
-    if (user?.name) {
+    if (user) {
       localStorage.setItem(`chat-${user.name}`, JSON.stringify(messages));
     }
-  }, [messages, user?.name]);
+  }, [messages, user]);
 
-  // Login form
-  if (!user) {
-    return <LoginForm onLogin={async (name) => {
-      if (!name) return;
-      // Fetch user data from firebase or create new
-      const userRef = doc(db, "users", name);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        setUser({ name, points: userSnap.data().points || 0 });
-      } else {
-        // Create new user document
-        await setDoc(userRef, { points: 0 });
-        setUser({ name, points: 0 });
-      }
-    }} />;
-  }
+  // Save user points to Firebase on user change
+  useEffect(() => {
+    if (!user) return;
+    const savePoints = async () => {
+      const userRef = doc(db, "users", user.name);
+      await setDoc(userRef, { points: user.points }, { merge: true });
+    };
+    savePoints();
+  }, [user?.points]);
+
+  // Login handler (fetch user points from Firebase or create new)
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const nameTrimmed = nameInput.trim();
+    if (!nameTrimmed) return;
+
+    const userRef = doc(db, "users", nameTrimmed);
+    const docSnap = await getDoc(userRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      setUser({ name: nameTrimmed, points: data.points || 0 });
+    } else {
+      // New user
+      await setDoc(userRef, { points: 0 });
+      setUser({ name: nameTrimmed, points: 0 });
+    }
+    setNameInput("");
+  };
 
   const handleLogout = () => {
     setUser(null);
     setMessages([]);
-    setInput("");
     setTeachMode(false);
     setTempProblem("");
     setPendingFeedback(null);
+  };
+
+  // Add points helper
+  const addPoints = async (pointsToAdd) => {
+    if (!user) return;
+    const updated = { ...user, points: user.points + pointsToAdd };
+    setUser(updated);
+    const userRef = doc(db, "users", user.name);
+    await updateDoc(userRef, { points: updated.points });
   };
 
   const handleSend = async () => {
@@ -112,7 +135,6 @@ const App = () => {
     }
 
     if (teachMode && tempProblem) {
-      // User submits a new solution - add to Firestore and award 5 points
       const knowledge = {
         solution: msg,
         submittedBy: user.name,
@@ -121,20 +143,19 @@ const App = () => {
         failure: 0
       };
       await setDoc(doc(db, "chatbotKnowledge", tempProblem.toLowerCase()), knowledge);
-
       setMessages(prev => [...prev, { text: `Learned how to solve "${tempProblem}"!`, sender: "bot" }]);
       if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
 
-      // Update user points (+5)
-      const updatedUser = { ...user, points: user.points + 5 };
-      setUser(updatedUser);
-      await setDoc(doc(db, "users", user.name), { points: updatedUser.points }, { merge: true });
+      // Add 5 points for submitting solution
+      await addPoints(5);
 
       setTeachMode(false);
       setTempProblem("");
       return;
     }
 
+    // Always show Thinking message
+    setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
     setLoadingAI(true);
 
     const match = search(msg)[0];
@@ -168,12 +189,14 @@ Now provide your own professional and detailed response.`
         const aiText = result.response.text().trim();
         combinedResponse += `🤖 AI's response:\n${aiText}`;
 
+        // Remove Thinking message
+        setMessages(prev => prev.filter(m => m.text !== "Thinking with AI... 🤖"));
+
         setMessages(prev => [...prev, { text: combinedResponse, sender: "bot" }]);
         if (!mute) speak(aiText);
 
         setPendingFeedback(match.text);
       } else {
-        setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
         const result = await gemini.generateContent(
           `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
 Always reply in clear plain text without markdown. 
@@ -182,107 +205,125 @@ Query: "${msg}"`
         );
 
         const aiText = result.response.text().trim();
+
+        // Remove Thinking message
+        setMessages(prev => prev.filter(m => m.text !== "Thinking with AI... 🤖"));
+
         setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
         if (!mute) speak(aiText);
+
+        setPendingFeedback(null);
       }
     } catch (err) {
       console.error("Gemini error:", err);
-      setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.text !== "Thinking with AI... 🤖");
+        return [...filtered, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }];
+      });
+      setPendingFeedback(null);
     } finally {
       setLoadingAI(false);
     }
   };
 
+  // Handle feedback votes, +1 point to solution submitter if "yes"
+  const handleFeedback = async (vote) => {
+    if (!pendingFeedback) return;
+    setPendingFeedback(null);
+
+    if (vote === "yes") {
+      setMessages(prev => [...prev, { text: "Thanks for the feedback!", sender: "bot" }]);
+      try {
+        const solDoc = doc(db, "chatbotKnowledge", pendingFeedback.toLowerCase());
+        const solSnap = await getDoc(solDoc);
+        if (solSnap.exists()) {
+          const solData = solSnap.data();
+          if (solData.submittedBy) {
+            const submitterRef = doc(db, "users", solData.submittedBy);
+            const submitterSnap = await getDoc(submitterRef);
+            if (submitterSnap.exists()) {
+              const submitterData = submitterSnap.data();
+              const newPoints = (submitterData.points || 0) + 1;
+              await updateDoc(submitterRef, { points: newPoints });
+
+              // If the submitter is the current user, update local state points
+              if (user.name === solData.submittedBy) {
+                setUser(prev => ({ ...prev, points: newPoints }));
+              }
+            }
+          }
+          // Increment success count on solution
+          await updateDoc(solDoc, { success: (solData.success || 0) + 1 });
+        }
+      } catch (err) {
+        console.error("Feedback update error:", err);
+      }
+    } else {
+      setMessages(prev => [...prev, { text: "Thanks for your feedback!", sender: "bot" }]);
+    }
+  };
+
+  // Render login form if no user
+  if (!user) {
+    return (
+      <div className="login-container" style={{ padding: 20, maxWidth: 400, margin: "auto" }}>
+        <h2>Enter your name to start</h2>
+        <form onSubmit={handleLogin}>
+          <input
+            type="text"
+            placeholder="Your name"
+            value={nameInput}
+            onChange={e => setNameInput(e.target.value)}
+            required
+            autoFocus
+            style={{ width: "100%", padding: 8, fontSize: 16 }}
+          />
+          <button type="submit" style={{ marginTop: 10, width: "100%", padding: 10 }}>
+            Login
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-      <ChatHeader />
-      <ChatMessages messages={messages} loadingAI={loadingAI} />
-      <Suggestions suggestions={suggestions} onSelect={setInput} />
+    <div className="app-container" style={{ maxWidth: 800, margin: "auto", padding: 20 }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Hello, {user.name} 👋 (Points: {user.points})</h2>
+        <button onClick={handleLogout} style={{ padding: "6px 12px" }}>
+          Logout
+        </button>
+      </header>
+
+      <ChatMessages messages={messages} />
+
+      {pendingFeedback && (
+        <Feedback onVote={handleFeedback} />
+      )}
+
       <InputControls
         input={input}
-        setInput={setInput}
+        onInputChange={setInput}
         onSend={handleSend}
         onVoice={startListening}
         mute={mute}
         setMute={setMute}
+        disabled={loadingAI || teachMode}
       />
-      <div className="flex justify-between px-4 pb-2 text-sm">
-        <button onClick={() => setMessages([])} className="text-red-500 underline">🗑 Clear History</button>
-        <button onClick={handleLogout} className="text-blue-500 underline">Logout</button>
-        <button onClick={() => setShowProfile(!showProfile)} className="text-blue-500 underline">
-          {showProfile ? "Hide Profile" : "View Profile"}
-        </button>
-      </div>
-      {showProfile && <ProfileCard user={user} />}
-      {pendingFeedback && (
-        <Feedback
-          onFeedback={async (vote) => {
-            const problemKey = pendingFeedback;
-            setPendingFeedback(null);
 
-            setMessages(prev => [...prev, {
-              text: vote === "yes" ? "Thanks for the feedback!" : "I'll try to do better!",
-              sender: "bot"
-            }]);
-
-            if (vote === "yes") {
-              try {
-                const knowledgeDoc = await getDoc(doc(db, "chatbotKnowledge", problemKey.toLowerCase()));
-                if (knowledgeDoc.exists()) {
-                  const knowledgeData = knowledgeDoc.data();
-                  if (knowledgeData.submittedBy) {
-                    const userRef = doc(db, "users", knowledgeData.submittedBy);
-                    const userSnap = await getDoc(userRef);
-                    if (userSnap.exists()) {
-                      const submitterData = userSnap.data();
-                      const newPoints = (submitterData.points || 0) + 1;
-                      await setDoc(userRef, { points: newPoints }, { merge: true });
-
-                      if (knowledgeData.submittedBy === user?.name) {
-                        setUser(prev => ({ ...prev, points: newPoints }));
-                      }
-                    }
-                  }
-                }
-              } catch (error) {
-                console.error("Error awarding points on feedback:", error);
-              }
-            }
-          }}
-        />
+      {teachMode && (
+        <div style={{ marginTop: 15, fontStyle: "italic", color: "#555" }}>
+          Teaching mode active — please provide problem & solution.
+        </div>
       )}
-    </div>
-  );
-};
 
-const LoginForm = ({ onLogin }) => {
-  const [nameInput, setNameInput] = useState("");
+      {suggestions.length > 0 && (
+        <Suggestions suggestions={suggestions} onSelect={setInput} />
+      )}
 
-  return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <form
-        onSubmit={e => {
-          e.preventDefault();
-          if (nameInput.trim()) onLogin(nameInput.trim());
-        }}
-        className="bg-white p-6 rounded shadow-md w-80"
-      >
-        <h2 className="text-xl font-semibold mb-4">Enter your name to start</h2>
-        <input
-          type="text"
-          placeholder="Your name"
-          value={nameInput}
-          onChange={e => setNameInput(e.target.value)}
-          className="w-full p-2 border rounded mb-4"
-          autoFocus
-        />
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-        >
-          Start Chat
-        </button>
-      </form>
+      {showProfile && (
+        <ProfileCard user={user} onClose={() => setShowProfile(false)} />
+      )}
     </div>
   );
 };
