@@ -106,24 +106,38 @@ const App = () => {
     const match = search(msg)[0];
 
     if (match) {
+      let improvedUserSolution = match.solution || "";
       let combinedResponse = "";
 
-      if (match.solution) {
-        combinedResponse += `👤 User-submitted solution:\n${match.solution}\n\n`;
-      }
-
       try {
+        // Improve the user-submitted solution
+        if (match.solution) {
+          const improvePrompt = `
+You are an expert in semiconductor engineering.
+Improve the following user-submitted solution for clarity, precision, and technical detail. 
+Keep it concise, professional, and actionable:
+
+"${match.solution}"
+
+Respond with only the improved version.`;
+
+          const improveResult = await gemini.generateContent(improvePrompt);
+          improvedUserSolution = improveResult.response.text().trim();
+          combinedResponse += `🛠 Improved user-submitted solution:\n${improvedUserSolution}\n\n`;
+        }
+
+        // AI’s independent response
         const result = await gemini.generateContent(
-          `You are a helpful assistant in the semiconductor industry. Reply in plain text only. The user asked: "${msg}". Here is a related user-submitted solution (if any): "${match.solution || 'N/A'}".`
+          `You are a helpful assistant in the semiconductor industry. The user asked: "${msg}". 
+Here is a user-submitted solution to consider: "${match.solution || 'N/A'}".
+Now provide your own professional and detailed response.`
         );
 
-        let aiText = result.response.text();
-        // aiText = await cleanMarkdown(aiText); // Uncomment if needed
-
-        combinedResponse += `🤖 AI perspective:\n${aiText}`;
+        const aiText = result.response.text().trim();
+        combinedResponse += `🤖 AI's response:\n${aiText}`;
 
         setMessages(prev => [...prev, { text: combinedResponse, sender: "bot" }]);
-        if (!mute) speak(aiText, lang); // Optional: only speak AI part
+        if (!mute) speak(aiText, lang); // Optionally speak only the AI part
       } catch (err) {
         console.error("Gemini error:", err);
         setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
@@ -131,16 +145,17 @@ const App = () => {
 
       setPendingFeedback(match.text);
     } else {
-      // Gemini fallback when there's no user-submitted solution
+      // Gemini fallback when there's no user solution
       setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
         const result = await gemini.generateContent(
-          `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. Always reply in clear plain text without markdown. Assume the user works in or is asking about topics relevant to semiconductor technology. Query: "${msg}"`
+          `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
+Always reply in clear plain text without markdown. 
+Assume the user works in or is asking about topics relevant to semiconductor technology. 
+Query: "${msg}"`
         );
 
-        let aiText = result.response.text();
-        // aiText = await cleanMarkdown(aiText); // Optional
-
+        const aiText = result.response.text().trim();
         setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
         if (!mute) speak(aiText, lang);
       } catch (err) {
