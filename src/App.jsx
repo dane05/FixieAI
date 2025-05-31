@@ -177,14 +177,14 @@ Query: "${msg}"`;
       const aiText = aiResult.response.text().trim();
       combinedResponse += `🤖 AI's response:\n${aiText}`;
 
-      setMessages((prev) => [
-        ...prev.slice(0, -1), // remove "Thinking" message
-        { text: combinedResponse, sender: "bot" },
-      ]);
+setMessages(prev => [
+  ...prev.slice(0, -1),
+  { text: combinedResponse, sender: "bot" },
+  match ? { type: "feedback", key: match.text } : null,
+].filter(Boolean));
 
-      if (!mute) speak(aiText);
-
-      if (match) setPendingFeedback(match.text);
+if (!mute) speak(aiText);
+setPendingFeedback(match?.text || null);
     } catch (err) {
       console.error("Gemini error:", err);
       setMessages((prev) => [
@@ -232,7 +232,13 @@ Query: "${msg}"`;
           Logout
         </button>
       </div>
-      <ChatMessages messages={messages} />
+<ChatMessages messages={messages} onFeedback={(vote) => {
+  setPendingFeedback(null);
+  setMessages(prev => [...prev, {
+    text: vote === "yes" ? "Thanks for the feedback!" : "I'll try to do better!",
+    sender: "bot"
+  }]);
+}} />
       <Suggestions suggestions={suggestions} onSelect={setInput} />
       <InputControls
         input={input}
