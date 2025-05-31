@@ -26,7 +26,6 @@ const App = () => {
   const [tempProblem, setTempProblem] = useState("");
   const [mute, setMute] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
-  const [lang, setLang] = useState("en-US");
 
   const { speak } = useSpeechSynthesis();
   const { startListening } = useVoiceRecognition((transcript) => {
@@ -97,7 +96,7 @@ const App = () => {
       };
       await setDoc(doc(db, "chatbotKnowledge", tempProblem.toLowerCase()), knowledge);
       setMessages(prev => [...prev, { text: `Learned how to solve "${tempProblem}"!`, sender: "bot" }]);
-      if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`, lang);
+      if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
       setTeachMode(false);
       setTempProblem("");
       return;
@@ -137,7 +136,7 @@ Now provide your own professional and detailed response.`
         combinedResponse += `🤖 AI's response:\n${aiText}`;
 
         setMessages(prev => [...prev, { text: combinedResponse, sender: "bot" }]);
-        if (!mute) speak(aiText, lang); // Optionally speak only the AI part
+        if (!mute) speak(aiText); // Optionally speak only the AI part
       } catch (err) {
         console.error("Gemini error:", err);
         setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
@@ -157,7 +156,7 @@ Query: "${msg}"`
 
         const aiText = result.response.text().trim();
         setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
-        if (!mute) speak(aiText, lang);
+        if (!mute) speak(aiText);
       } catch (err) {
         console.error("Gemini error:", err);
         setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
@@ -181,8 +180,6 @@ Query: "${msg}"`
         onVoice={startListening}
         mute={mute}
         setMute={setMute}
-        lang={lang}
-        setLang={setLang}
       />
       <div className="flex justify-between px-4 pb-2 text-sm">
         <button onClick={() => setMessages([])} className="text-red-500 underline">🗑 Clear History</button>
