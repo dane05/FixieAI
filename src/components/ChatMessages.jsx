@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 
 const ChatMessages = ({ messages }) => (
-  <div className="flex flex-col space-y-4 p-4 overflow-y-auto">
+  <div className="flex-1 overflow-y-auto max-h-[70vh] p-4 flex flex-col space-y-4">
     {messages.map((msg, idx) => (
       <div
         key={idx}
@@ -11,8 +11,7 @@ const ChatMessages = ({ messages }) => (
             : 'bg-gray-100 text-gray-800 self-start'
         }`}
       >
-        <ReactMarkdown className="markdown">{msg.text}</ReactMarkdown>
-
+        <ReactMarkdown>{String(msg.text || '')}</ReactMarkdown>
       </div>
     ))}
   </div>
