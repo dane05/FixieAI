@@ -11,7 +11,8 @@ const ChatMessages = ({ messages }) => (
             : 'bg-gray-100 text-gray-800 self-start'
         }`}
       >
-        <ReactMarkdown>{msg.text}</ReactMarkdown>
+        <ReactMarkdown className="markdown">{msg.text}</ReactMarkdown>
+
       </div>
     ))}
   </div>
