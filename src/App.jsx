@@ -196,13 +196,13 @@ Query: "${msg}"`;
       const aiResult = await gemini.generateContent(aiPrompt);
       const aiText = aiResult.response.text().trim();
       combinedResponse += `🤖 AI's response:\n${aiText}`;
-
+if (!teachMode) {
 setMessages(prev => [
   ...prev.slice(0, -1),
   { text: combinedResponse, sender: "bot" },
-  match ? { type: "feedback", key: match.text, sender: "bot" } : null,
+  match ? { type: "feedback", key: match?.text || msg, sender: "bot" } : null,
 ].filter(Boolean));
-
+}
 if (!mute) speak(aiText);
 setPendingFeedback(match?.text || null);
     } catch (err) {
