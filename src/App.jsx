@@ -252,5 +252,5 @@ setPendingFeedback(match?.text || null);
       />
     </div>  {/* closes the main chat container */}
   );
-
+};
 export default App;
