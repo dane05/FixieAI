@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { db, gemini } from "./firebase";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { cleanMarkdown } from './utils/markdown';
 
 import useVoiceRecognition from "./hooks/useVoiceRecognition";
 import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
 import useFuseSearch from "./hooks/useFuseSearch";
+import { getBadge } from "./utils/badge";
 
+import ChatHeader from "./components/ChatHeader";
 import ChatMessages from "./components/ChatMessages";
+import InputControls from "./components/InputControls";
 import Suggestions from "./components/Suggestions";
-import Feedback from "./components/Feedback";
 import ProfileCard from "./components/ProfileCard";
+import Feedback from "./components/Feedback";
 
 const App = () => {
   const [user, setUser] = useState({ name: "", points: 0 });
@@ -23,7 +27,6 @@ const App = () => {
   const [mute, setMute] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
   const [lang, setLang] = useState("en-US");
-  const [isLoading, setIsLoading] = useState(false);
 
   const { speak } = useSpeechSynthesis();
   const { startListening } = useVoiceRecognition((transcript) => {
@@ -64,10 +67,6 @@ const App = () => {
     }
   }, [messages]);
 
-  const toggleDarkMode = () => {
-    document.documentElement.classList.toggle("dark");
-  };
-
   const handleSend = async () => {
     const msg = input.trim();
     if (!msg) return;
@@ -105,12 +104,13 @@ const App = () => {
     }
 
     const match = search(msg)[0];
-    setIsLoading(true);
-    try {
-      if (match) {
-        let improvedUserSolution = match.solution || "";
-        let combinedResponse = "";
 
+    if (match) {
+      let improvedUserSolution = match.solution || "";
+      let combinedResponse = "";
+
+      try {
+        // Improve the user-submitted solution
         if (match.solution) {
           const improvePrompt = `
 You are an expert in semiconductor engineering.
@@ -134,104 +134,71 @@ Now provide your own professional and detailed response.`
         );
 
         const aiText = result.response.text().trim();
-        combinedResponse += `🤖 AI:\n${aiText}`;
+        combinedResponse += `🤖 AI's response:\n${aiText}`;
+
         setMessages(prev => [...prev, { text: combinedResponse, sender: "bot" }]);
-        if (!mute) speak(aiText, lang);
-        setPendingFeedback(match.text);
-      } else {
-        setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
+        if (!mute) speak(aiText, lang); // Optionally speak only the AI part
+      } catch (err) {
+        console.error("Gemini error:", err);
+        setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
+      }
+
+      setPendingFeedback(match.text);
+    } else {
+      // Gemini fallback when there's no user solution
+      setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
+      try {
         const result = await gemini.generateContent(
-          `User asked: "${msg}". Provide a professional semiconductor-focused response.`
+          `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
+Always reply in clear plain text without markdown. 
+Assume the user works in or is asking about topics relevant to semiconductor technology. 
+Query: "${msg}"`
         );
+
         const aiText = result.response.text().trim();
         setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
         if (!mute) speak(aiText, lang);
+      } catch (err) {
+        console.error("Gemini error:", err);
+        setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
       }
-
-      const updated = { ...user, points: user.points + 5 };
-      setUser(updated);
-      localStorage.setItem(`user-${user.name}`, JSON.stringify(updated));
-    } catch (err) {
-      console.error("Gemini error:", err);
-      setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
     }
-    setIsLoading(false);
+
+    const updated = { ...user, points: user.points + 5 };
+    setUser(updated);
+    localStorage.setItem(`user-${user.name}`, JSON.stringify(updated));
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 text-black dark:text-white w-full h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center px-4 py-3 border-b dark:border-gray-800">
-        <div className="text-lg font-semibold">💬 SemiBot</div>
-        <div className="flex items-center gap-2">
-          <button onClick={toggleDarkMode} className="hover:text-yellow-500">🌓</button>
-          <button onClick={() => setShowProfile(!showProfile)} className="hover:text-blue-400">
-            🙍‍♂️
-          </button>
-        </div>
-      </div>
-
-      {/* Profile Dropdown */}
-      {showProfile && (
-        <div className="absolute top-14 right-4 z-10 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-3">
-          <ProfileCard user={user} />
-        </div>
-      )}
-
-      {/* Teach Mode Banner */}
-      {teachMode && (
-        <div className="bg-yellow-100 dark:bg-yellow-300 text-yellow-800 text-center text-sm py-1">
-          🧠 Teach Mode Active
-        </div>
-      )}
-
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        <ChatMessages messages={messages} />
-        {isLoading && (
-          <div className="text-sm text-gray-500">🔄 AI is processing...</div>
-        )}
-      </div>
-
+    <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <ChatHeader />
+      <ChatMessages messages={messages} />
       <Suggestions suggestions={suggestions} onSelect={setInput} />
-
-      {/* Input Bar */}
-      <div className="p-4 border-t dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-        <div className="flex gap-2">
-          <input
-            className="flex-1 px-4 py-2 rounded-lg border dark:border-gray-700 dark:bg-gray-900 focus:outline-none"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me something..."
-          />
-          <button onClick={startListening} className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-            🎙
-          </button>
-          <button onClick={() => setMute(!mute)} className="px-3 py-2 bg-gray-300 dark:bg-gray-700 rounded-lg">
-            {mute ? "🔇" : "🔊"}
-          </button>
-          <button onClick={handleSend} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-            ➤
-          </button>
-        </div>
+      <InputControls
+        input={input}
+        setInput={setInput}
+        onSend={handleSend}
+        onVoice={startListening}
+        mute={mute}
+        setMute={setMute}
+        lang={lang}
+        setLang={setLang}
+      />
+      <div className="flex justify-between px-4 pb-2 text-sm">
+        <button onClick={() => setMessages([])} className="text-red-500 underline">🗑 Clear History</button>
+        <button onClick={() => setShowProfile(!showProfile)} className="text-blue-500 underline">
+          {showProfile ? "Hide Profile" : "View Profile"}
+        </button>
       </div>
-
-      {/* Footer Controls */}
-      <div className="flex justify-between items-center px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-        <button onClick={() => setMessages([])} className="hover:text-red-500">🗑 Clear</button>
-      </div>
-
-      {/* Feedback */}
+      {showProfile && <ProfileCard user={user} />}
       {pendingFeedback && (
-        <Feedback
-          onFeedback={(vote) => {
-            setPendingFeedback(null);
-            setMessages(prev => [...prev, {
-              text: vote === "yes" ? "👍 Thanks for the feedback!" : "👎 I'll try to do better!",
-              sender: "bot"
-            }]);
-          }}
-        />
+        <Feedback onFeedback={(vote) => {
+          setPendingFeedback(null);
+          setMessages(prev => [...prev, {
+            text: vote === "yes" ? "Thanks for the feedback!" : "I'll try to do better!",
+            sender: "bot"
+          }]);
+        }} />
       )}
     </div>
   );
