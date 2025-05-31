@@ -250,11 +250,7 @@ setPendingFeedback(match?.text || null);
         mute={mute}
         setMute={setMute}
       />
-
-<div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden mx-auto mt-4">
-  <ChatHeader onToggleProfile={() => setShowProfile(!showProfile)} />
-  {showProfile && <ProfileCard user={user} />}
+    </div>  {/* closes the main chat container */}
   );
-};
 
 export default App;
