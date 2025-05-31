@@ -3,7 +3,6 @@ import { db, gemini } from "./firebase";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { cleanMarkdown } from './utils/markdown';
 
-
 import useVoiceRecognition from "./hooks/useVoiceRecognition";
 import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
 import useFuseSearch from "./hooks/useFuseSearch";
@@ -107,25 +106,43 @@ const App = () => {
     const match = search(msg)[0];
 
     if (match) {
-      const response = match.solution || match.text;
-      setMessages(prev => [...prev, { text: response, sender: "bot" }]);
-      if (!mute) speak(response, lang);
+      let combinedResponse = "";
+
+      if (match.solution) {
+        combinedResponse += `👤 User-submitted solution:\n${match.solution}\n\n`;
+      }
+
+      try {
+        const result = await gemini.generateContent(
+          `You are a helpful assistant in the semiconductor industry. Reply in plain text only. The user asked: "${msg}". Here is a related user-submitted solution (if any): "${match.solution || 'N/A'}".`
+        );
+
+        let aiText = result.response.text();
+        // aiText = await cleanMarkdown(aiText); // Uncomment if needed
+
+        combinedResponse += `🤖 AI perspective:\n${aiText}`;
+
+        setMessages(prev => [...prev, { text: combinedResponse, sender: "bot" }]);
+        if (!mute) speak(aiText, lang); // Optional: only speak AI part
+      } catch (err) {
+        console.error("Gemini error:", err);
+        setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
+      }
+
       setPendingFeedback(match.text);
     } else {
-      // 🤖 Gemini fallback
+      // Gemini fallback when there's no user-submitted solution
       setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
-const result = await gemini.generateContent(
-  `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. Always reply in clear plain text without markdown. Assume the user works in or is asking about topics relevant to semiconductor technology. Query: "${msg}"`
-);
+        const result = await gemini.generateContent(
+          `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. Always reply in clear plain text without markdown. Assume the user works in or is asking about topics relevant to semiconductor technology. Query: "${msg}"`
+        );
 
-let aiText = result.response.text();
+        let aiText = result.response.text();
+        // aiText = await cleanMarkdown(aiText); // Optional
 
-// Optional: strip markdown if the model still returns some
-//aiText = await cleanMarkdown(aiText);
-
-setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
-if (!mute) speak(aiText, lang);
+        setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
+        if (!mute) speak(aiText, lang);
       } catch (err) {
         console.error("Gemini error:", err);
         setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
