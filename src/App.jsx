@@ -200,7 +200,7 @@ Query: "${msg}"`;
 setMessages(prev => [
   ...prev.slice(0, -1),
   { text: combinedResponse, sender: "bot" },
-  match ? { type: "feedback", key: match.text } : null,
+  match ? { type: "feedback", key: match.text, sender: "bot" } : null,
 ].filter(Boolean));
 
 if (!mute) speak(aiText);
