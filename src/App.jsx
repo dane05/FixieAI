@@ -79,6 +79,18 @@ const App = () => {
     setMessages([]);
   };
 
+useEffect(() => {
+  if (user) {
+    setMessages([
+      {
+        text: `Hello ${user.name}! I'm Fixie, your AI Troubleshooting Assistant. How can I help you today?`,
+        sender: "bot",
+      },
+    ]);
+  }
+}, [user]);
+
+  
   // ---- SEND MESSAGE FUNCTION ----
   const handleSend = async () => {
     const msg = input.trim();
