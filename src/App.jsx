@@ -111,18 +111,20 @@ const App = () => {
     try {
       let prompt;
       if (match && match.solution) {
-        prompt = `
+prompt = `
 You are a highly skilled technical assistant for the semiconductor industry.
 
-The user asked: "${msg}"
+The user asked: ${msg}
 
 Another user previously submitted this solution:
-"""
+--- START USER SOLUTION ---
 ${match.solution}
-"""
+--- END USER SOLUTION ---
 
-Using that prior knowledge, write an improved, more detailed, and professional response. Use clear formatting and structure (Markdown style preferred).
-        `;
+Use the above information to craft a clear, helpful, professional, and enhanced response.
+Respond in Markdown if helpful.
+`;
+
       } else {
         prompt = `
 You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry.
