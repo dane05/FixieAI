@@ -15,16 +15,30 @@ const ChatMessages = ({ messages, onFeedback }) => (
         );
       }
 
+      const isUser = msg.sender === "user";
+
       return (
         <div
           key={idx}
-          className={`max-w-xl px-4 py-3 rounded-lg shadow text-sm whitespace-pre-wrap ${
-            msg.sender === "user"
-              ? "bg-blue-600 text-white self-end"
-              : "bg-gray-100 text-gray-800 self-start"
-          }`}
+          className={`flex max-w-xl ${
+            isUser ? "self-end flex-row-reverse" : "self-start"
+          } items-start gap-2`}
         >
-          <ReactMarkdown>{String(msg.text || "")}</ReactMarkdown>
+          {/* Avatar */}
+          <img
+            src={isUser ? "/user-avatar.png" : "/bot-avatar.png"}
+            alt={isUser ? "User avatar" : "Bot avatar"}
+            className="w-8 h-8 rounded-full object-cover"
+          />
+
+          {/* Message bubble */}
+          <div
+            className={`px-4 py-3 rounded-lg shadow text-sm whitespace-pre-wrap max-w-[70vw] ${
+              isUser ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            <ReactMarkdown>{String(msg.text || "")}</ReactMarkdown>
+          </div>
         </div>
       );
     })}
