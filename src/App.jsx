@@ -250,7 +250,7 @@ setPendingFeedback(match?.text || null);
         mute={mute}
         setMute={setMute}
       />
-    </div>  {/* closes the main chat container */}
+    </div>
   );
 };
 export default App;
