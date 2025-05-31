@@ -201,7 +201,7 @@ setPendingFeedback(match?.text || null);
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-100 p-4">
         <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-sm space-y-4">
-          <h1 className="text-xl font-bold text-center">Welcome to the AI Assistant</h1>
+          <h1 className="text-xl font-bold text-center">Hello, Im Fixie your AI Troubleshooting Assistant</h1>
           <input
             type="text"
             value={nameInput}
@@ -263,23 +263,6 @@ setPendingFeedback(match?.text || null);
         </button>
       </div>
       {showProfile && <ProfileCard user={user} />}
-      {pendingFeedback && (
-        <Feedback
-          onFeedback={(vote) => {
-            setPendingFeedback(null);
-            setMessages((prev) => [
-              ...prev,
-              {
-                text:
-                  vote === "yes"
-                    ? "Thanks for the feedback!"
-                    : "I'll try to do better!",
-                sender: "bot",
-              },
-            ]);
-          }}
-        />
-      )}
     </div>
   );
 };
