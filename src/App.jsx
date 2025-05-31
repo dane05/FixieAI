@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { db, gemini } from "./firebase";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
-import { cleanMarkdown } from './utils/markdown';
 
 import useVoiceRecognition from "./hooks/useVoiceRecognition";
 import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
 import useFuseSearch from "./hooks/useFuseSearch";
-import { getBadge } from "./utils/badge";
 
 import ChatHeader from "./components/ChatHeader";
 import ChatMessages from "./components/ChatMessages";
@@ -16,7 +14,7 @@ import ProfileCard from "./components/ProfileCard";
 import Feedback from "./components/Feedback";
 
 const App = () => {
-  const [user, setUser] = useState({ name: "", points: 0 });
+  const [user, setUser] = useState(null); // null when not logged in
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [faq, setFaq] = useState([]);
@@ -26,6 +24,8 @@ const App = () => {
   const [tempProblem, setTempProblem] = useState("");
   const [mute, setMute] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
+  const [loading, setLoading] = useState(false); // for "thinking" message
+  const [nameInput, setNameInput] = useState("");
 
   const { speak } = useSpeechSynthesis();
   const { startListening } = useVoiceRecognition((transcript) => {
@@ -34,18 +34,6 @@ const App = () => {
   });
 
   const search = useFuseSearch(faq);
-
-  useEffect(() => {
-    const existing = localStorage.getItem("userInitialized");
-    if (!existing) {
-      const name = prompt("What is your name?");
-      if (name) {
-        const saved = JSON.parse(localStorage.getItem(`user-${name}`)) || { name, points: 0 };
-        setUser(saved);
-        localStorage.setItem("userInitialized", "true");
-      }
-    }
-  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -58,17 +46,31 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (user.name) {
+    if (user?.name) {
       const saved = JSON.parse(localStorage.getItem(`chat-${user.name}`));
       if (saved) setMessages(saved);
     }
-  }, [user.name]);
+  }, [user?.name]);
 
   useEffect(() => {
-    if (user.name) {
+    if (user?.name) {
       localStorage.setItem(`chat-${user.name}`, JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, user?.name]);
+
+  const handleLogin = () => {
+    const name = nameInput.trim();
+    if (!name) return;
+
+    const saved = JSON.parse(localStorage.getItem(`user-${name}`)) || { name, points: 0 };
+    setUser(saved);
+    setNameInput("");
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setMessages([]);
+  };
 
   const handleSend = async () => {
     const msg = input.trim();
@@ -108,16 +110,15 @@ const App = () => {
 
     const match = search(msg)[0];
 
-    // ✅ Add "Thinking..." message regardless of match
     setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
+    setLoading(true);
 
-    if (match) {
-      let improvedUserSolution = match.solution || "";
+    try {
       let combinedResponse = "";
 
-      try {
-        if (match.solution) {
-          const improvePrompt = `
+      // Improve user-submitted solution if exists
+      if (match?.solution) {
+        const improvePrompt = `
 You are an expert in semiconductor engineering.
 Improve the following user-submitted solution for clarity, precision, and technical detail. 
 Keep it concise, professional, and actionable:
@@ -125,45 +126,41 @@ Keep it concise, professional, and actionable:
 "${match.solution}"
 
 Respond with only the improved version.`;
+        const improveResult = await gemini.generateContent(improvePrompt);
+        const improvedUserSolution = improveResult.response.text().trim();
+        combinedResponse += `🛠 Improved user-submitted solution:\n${improvedUserSolution}\n\n`;
+      }
 
-          const improveResult = await gemini.generateContent(improvePrompt);
-          improvedUserSolution = improveResult.response.text().trim();
-          combinedResponse += `🛠 Improved user-submitted solution:\n${improvedUserSolution}\n\n`;
-        }
-
-        const result = await gemini.generateContent(
-          `You are a helpful assistant in the semiconductor industry. The user asked: "${msg}". 
+      // AI response
+      const aiPrompt = match
+        ? `You are a helpful assistant in the semiconductor industry. The user asked: "${msg}". 
 Here is a user-submitted solution to consider: "${match.solution || 'N/A'}".
 Now provide your own professional and detailed response.`
-        );
-
-        const aiText = result.response.text().trim();
-        combinedResponse += `🤖 AI's response:\n${aiText}`;
-
-        setMessages(prev => [...prev.slice(0, -1), { text: combinedResponse, sender: "bot" }]); // Replace "Thinking..." message
-        if (!mute) speak(aiText);
-      } catch (err) {
-        console.error("Gemini error:", err);
-        setMessages(prev => [...prev.slice(0, -1), { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
-      }
-
-      setPendingFeedback(match.text);
-    } else {
-      try {
-        const result = await gemini.generateContent(
-          `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
+        : `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
 Always reply in clear plain text without markdown. 
-Assume the user works in or is asking about topics relevant to semiconductor technology. 
-Query: "${msg}"`
-        );
+Query: "${msg}"`;
 
-        const aiText = result.response.text().trim();
-        setMessages(prev => [...prev.slice(0, -1), { text: aiText, sender: "bot" }]); // Replace "Thinking..." message
-        if (!mute) speak(aiText);
-      } catch (err) {
-        console.error("Gemini error:", err);
-        setMessages(prev => [...prev.slice(0, -1), { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
-      }
+      const aiResult = await gemini.generateContent(aiPrompt);
+      const aiText = aiResult.response.text().trim();
+      combinedResponse += `🤖 AI's response:\n${aiText}`;
+
+      // Replace "thinking" with actual answer
+      setMessages(prev => [
+        ...prev.slice(0, -1), // remove "Thinking"
+        { text: combinedResponse, sender: "bot" }
+      ]);
+
+      if (!mute) speak(aiText);
+
+      if (match) setPendingFeedback(match.text);
+    } catch (err) {
+      console.error("Gemini error:", err);
+      setMessages(prev => [
+        ...prev.slice(0, -1),
+        { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }
+      ]);
+    } finally {
+      setLoading(false);
     }
 
     const updated = { ...user, points: user.points + 5 };
@@ -171,9 +168,38 @@ Query: "${msg}"`
     localStorage.setItem(`user-${user.name}`, JSON.stringify(updated));
   };
 
+  // --- Login UI ---
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 p-4">
+        <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-sm space-y-4">
+          <h1 className="text-xl font-bold text-center">Welcome to the AI Assistant</h1>
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Enter your name"
+            className="w-full border rounded p-2"
+          />
+          <button
+            onClick={handleLogin}
+            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+          >
+            Start
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Main Chat UI ---
   return (
-    <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden mx-auto mt-4">
       <ChatHeader />
+      <div className="flex justify-between items-center px-4 pt-2 text-sm text-gray-600">
+        <span>👋 Hello, {user.name}! Points: {user.points}</span>
+        <button onClick={handleLogout} className="text-red-500 underline">Logout</button>
+      </div>
       <ChatMessages messages={messages} />
       <Suggestions suggestions={suggestions} onSelect={setInput} />
       <InputControls
