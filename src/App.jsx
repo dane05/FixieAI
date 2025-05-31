@@ -43,14 +43,16 @@ const App = () => {
 
   const search = useFuseSearch(faq);
 
+  // Helper to load chatbotKnowledge collection into faq & suggestions
+  const loadFaq = async () => {
+    const snap = await getDocs(collection(db, "chatbotKnowledge"));
+    const data = snap.docs.map((doc) => ({ text: doc.id, ...doc.data() }));
+    setFaq(data);
+    setSuggestions(data.map((d) => d.text).slice(0, 4));
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const snap = await getDocs(collection(db, "chatbotKnowledge"));
-      const data = snap.docs.map((doc) => ({ text: doc.id, ...doc.data() }));
-      setFaq(data);
-      setSuggestions(data.map((d) => d.text).slice(0, 4));
-    };
-    load();
+    loadFaq();
   }, []);
 
   // ---- LOGIN FUNCTION ----
@@ -123,6 +125,9 @@ const App = () => {
         { text: `Learned how to solve "${tempProblem}"!`, sender: "bot" },
       ]);
       if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
+
+      // Reload FAQ to include new knowledge immediately
+      await loadFaq();
 
       // Increment points by 5 in Firestore
       const userDocRef = doc(db, "users", user.name);
