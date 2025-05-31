@@ -10,7 +10,6 @@ const ChatMessages = ({ messages, onFeedback }) => (
             key={idx}
             className="max-w-xl px-4 py-3 rounded-lg shadow text-sm bg-gray-100 text-gray-800 self-start"
           >
-            <p className="mb-2">🤔 Did this help?</p>
             <Feedback onFeedback={onFeedback} />
           </div>
         );
