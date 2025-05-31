@@ -176,7 +176,7 @@ Keep it concise, professional, and actionable:
 
 "${match.solution}"
 
-Respond with only the improved version.`;
+Respond with the improved version together with the user submitted solution.`;
         const improveResult = await gemini.generateContent(improvePrompt);
         const improvedUserSolution = improveResult.response.text().trim();
         combinedResponse += `🛠 Improved user-submitted solution:\n${improvedUserSolution}\n\n`;
@@ -187,7 +187,10 @@ Respond with only the improved version.`;
 Here is a user-submitted solution to consider: "${match.solution || "N/A"}".
 Now provide your own professional and detailed response.`
         : `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
-Always reply in clear plain text without markdown. 
+Respond in clear Markdown. Use:
+- **bold** for technical terms,
+- *italics* for emphasis,
+- and bullet points for lists or steps. 
 Query: "${msg}"`;
 
       const aiResult = await gemini.generateContent(aiPrompt);
