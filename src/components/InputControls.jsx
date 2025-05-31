@@ -18,7 +18,7 @@ const InputControls = ({ input, setInput, onSend, onVoice, mute, setMute }) => (
           className="bg-gray-200 hover:bg-gray-300 text-gray-800 p-2.5 rounded-full shadow-sm transition flex items-center justify-center"
           aria-label={mute ? "Unmute" : "Mute"}
         >
-          {mute ? <VolumeX size={10} /> : <Volume2 size={10} />}
+          {mute ? <VolumeX size={15} /> : <Volume2 size={15} />}
         </button>
 
         {/* Voice */}
@@ -27,7 +27,7 @@ const InputControls = ({ input, setInput, onSend, onVoice, mute, setMute }) => (
           className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2.5 rounded-full shadow-sm transition flex items-center justify-center"
           aria-label="Voice input"
         >
-          <Mic size={10} />
+          <Mic size={15} />
         </button>
 
         {/* Send */}
