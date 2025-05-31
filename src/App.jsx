@@ -36,10 +36,14 @@ const App = () => {
   const search = useFuseSearch(faq);
 
   useEffect(() => {
-    const name = prompt("What is your name?");
-    if (name) {
-      const saved = JSON.parse(localStorage.getItem(`user-${name}`)) || { name, points: 0 };
-      setUser(saved);
+    const existing = localStorage.getItem("userInitialized");
+    if (!existing) {
+      const name = prompt("What is your name?");
+      if (name) {
+        const saved = JSON.parse(localStorage.getItem(`user-${name}`)) || { name, points: 0 };
+        setUser(saved);
+        localStorage.setItem("userInitialized", "true");
+      }
     }
   }, []);
 
@@ -104,12 +108,14 @@ const App = () => {
 
     const match = search(msg)[0];
 
+    // ✅ Add "Thinking..." message regardless of match
+    setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
+
     if (match) {
       let improvedUserSolution = match.solution || "";
       let combinedResponse = "";
 
       try {
-        // Improve the user-submitted solution
         if (match.solution) {
           const improvePrompt = `
 You are an expert in semiconductor engineering.
@@ -125,7 +131,6 @@ Respond with only the improved version.`;
           combinedResponse += `🛠 Improved user-submitted solution:\n${improvedUserSolution}\n\n`;
         }
 
-        // AI’s independent response
         const result = await gemini.generateContent(
           `You are a helpful assistant in the semiconductor industry. The user asked: "${msg}". 
 Here is a user-submitted solution to consider: "${match.solution || 'N/A'}".
@@ -135,17 +140,15 @@ Now provide your own professional and detailed response.`
         const aiText = result.response.text().trim();
         combinedResponse += `🤖 AI's response:\n${aiText}`;
 
-        setMessages(prev => [...prev, { text: combinedResponse, sender: "bot" }]);
-        if (!mute) speak(aiText); // Optionally speak only the AI part
+        setMessages(prev => [...prev.slice(0, -1), { text: combinedResponse, sender: "bot" }]); // Replace "Thinking..." message
+        if (!mute) speak(aiText);
       } catch (err) {
         console.error("Gemini error:", err);
-        setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
+        setMessages(prev => [...prev.slice(0, -1), { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
       }
 
       setPendingFeedback(match.text);
     } else {
-      // Gemini fallback when there's no user solution
-      setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
         const result = await gemini.generateContent(
           `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
@@ -155,11 +158,11 @@ Query: "${msg}"`
         );
 
         const aiText = result.response.text().trim();
-        setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
+        setMessages(prev => [...prev.slice(0, -1), { text: aiText, sender: "bot" }]); // Replace "Thinking..." message
         if (!mute) speak(aiText);
       } catch (err) {
         console.error("Gemini error:", err);
-        setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
+        setMessages(prev => [...prev.slice(0, -1), { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
       }
     }
 
