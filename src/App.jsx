@@ -88,6 +88,11 @@ const App = () => {
     setMessages((prev) => [...prev, { text: msg, sender: "user" }]);
     setInput("");
 
+if (msg.toLowerCase() === "clear") {
+  setMessages([]);
+  setInput("");
+  return;
+}    
     if (lower === "solution") {
       setTeachMode(true);
       setTempProblem("");
@@ -223,15 +228,12 @@ setPendingFeedback(match?.text || null);
   // --- MAIN CHAT UI ---
   return (
     <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden mx-auto mt-4">
-      <ChatHeader />
-      <div className="flex justify-between items-center px-4 pt-2 text-sm text-gray-600">
-        <span>
-          👋 Hello, {user.name}! Points: {user.points}
-        </span>
-        <button onClick={handleLogout} className="text-red-500 underline">
-          Logout
-        </button>
-      </div>
+<ChatHeader onToggleProfile={() => setShowProfile(!showProfile)} />
+{showProfile && <ProfileCard user={user} />}
+<div className="flex justify-between items-center px-4 pt-2 text-sm text-gray-600">
+  <span>👋 Hello, {user.name}! Points: {user.points}</span>
+  <button onClick={handleLogout} className="text-red-500 underline">Logout</button>
+</div>
 <ChatMessages messages={messages} onFeedback={(vote) => {
   setPendingFeedback(null);
   setMessages(prev => [...prev, {
@@ -248,21 +250,10 @@ setPendingFeedback(match?.text || null);
         mute={mute}
         setMute={setMute}
       />
-      <div className="flex justify-between px-4 pb-2 text-sm">
-        <button
-          onClick={() => setMessages([])}
-          className="text-red-500 underline"
-        >
-          🗑 Clear History
-        </button>
-        <button
-          onClick={() => setShowProfile(!showProfile)}
-          className="text-blue-500 underline"
-        >
-          {showProfile ? "Hide Profile" : "View Profile"}
-        </button>
-      </div>
-      {showProfile && <ProfileCard user={user} />}
+
+<ChatHeader onToggleProfile={() => setShowProfile(!showProfile)} />
+{showProfile && <ProfileCard user={user} />}
+
     </div>
   );
 };
