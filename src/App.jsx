@@ -254,7 +254,6 @@ setPendingFeedback(match?.text || null);
 <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden mx-auto mt-4">
   <ChatHeader onToggleProfile={() => setShowProfile(!showProfile)} />
   {showProfile && <ProfileCard user={user} />}
-    </div>
   );
 };
 
