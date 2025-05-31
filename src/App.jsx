@@ -24,7 +24,10 @@ import Feedback from "./components/Feedback";
 const App = () => {
   const [user, setUser] = useState(null); // null when not logged in
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([]);
+const [messages, setMessages] = useState([
+  { text: "Hello! I'm Fixie, your AI Troubleshooting Assistant. How can I help you today?", sender: "bot" }
+]);
+
   const [faq, setFaq] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [showProfile, setShowProfile] = useState(false);
