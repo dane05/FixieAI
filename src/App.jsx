@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { db, gemini } from "./firebase";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { cleanMarkdown } from './utils/markdown';
+
 
 import useVoiceRecognition from "./hooks/useVoiceRecognition";
 import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
@@ -114,11 +116,16 @@ const App = () => {
       setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
 const result = await gemini.generateContent(
-  `You are a friendly and helpful assistant in a semiconductor company. Engage in a natural conversation and provide concise solutions. User says: "${msg}"`
+  `You are a helpful technical assistant. Do not use markdown. Just reply in clear plain text. Query: "${msg}"`
 );
-        const aiText = result.response.text();
-        setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
-        if (!mute) speak(aiText, lang);
+
+let aiText = result.response.text();
+
+// Optional: strip markdown if the model still returns some
+aiText = await cleanMarkdown(aiText);
+
+setMessages(prev => [...prev, { text: aiText, sender: "bot" }]);
+if (!mute) speak(aiText, lang);
       } catch (err) {
         console.error("Gemini error:", err);
         setMessages(prev => [...prev, { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" }]);
