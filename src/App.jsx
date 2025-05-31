@@ -116,7 +116,7 @@ const App = () => {
       setMessages(prev => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
       try {
 const result = await gemini.generateContent(
-  `You are a helpful technical assistant. Do not use markdown. Just reply in clear plain text. Query: "${msg}"`
+  `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. Always reply in clear plain text without markdown. Assume the user works in or is asking about topics relevant to semiconductor technology. Query: "${msg}"`
 );
 
 let aiText = result.response.text();
