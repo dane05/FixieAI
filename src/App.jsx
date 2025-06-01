@@ -132,14 +132,14 @@ const handleSend = async () => {
       success: 0,
       failure: 0,
     };
-    await setDoc(
-      doc(db, "chatbotKnowledge", tempProblem.toLowerCase()),
-      knowledge
-    );
+
+    await setDoc(doc(db, "chatbotKnowledge", tempProblem.toLowerCase()), knowledge);
+
     setMessages((prev) => [
       ...prev,
-      { text: `Learned how to solve "${tempProblem}"!`, sender: "bot" },
+      { text: `✅ Learned how to solve "${tempProblem}"!`, sender: "bot" },
     ]);
+
     if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
 
     await loadFaq();
@@ -154,11 +154,12 @@ const handleSend = async () => {
     return;
   }
 
+  // Normal query flow
   const match = search(msg)[0];
 
   setMessages((prev) => [
     ...prev,
-    { text: "Thinking with AI... 🤖", sender: "bot" },
+    // We don't add "Thinking with AI..." here anymore since we add it after improved solution
   ]);
   setLoading(true);
 
@@ -174,12 +175,18 @@ Return the improved version only.`;
       const improveResult = await gemini.generateContent(improvePrompt);
       const improvedText = improveResult.response.text().trim();
 
+      // Show improved solution + "Thinking with AI..." message
       setMessages((prev) => [
-        ...prev.slice(0, -1), // remove "Thinking with AI..."
+        ...prev.slice(0, -1), // remove previous "Thinking with AI..." if any
         { text: `🛠 Improved user-submitted solution:\n${improvedText}`, sender: "bot" },
+        { text: "🤔 Thinking with AI...", sender: "bot" },
       ]);
     } else {
-      setMessages((prev) => prev.slice(0, -1)); // remove placeholder
+      // No solution to improve: just show "Thinking with AI..."
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        { text: "🤔 Thinking with AI...", sender: "bot" },
+      ]);
     }
 
     const aiPrompt = match
@@ -196,18 +203,24 @@ Use Markdown:
     const aiResult = await gemini.generateContent(aiPrompt);
     const aiText = aiResult.response.text().trim();
 
-    setMessages((prev) => [
-      ...prev,
-      { text: `🤖 AI's response:\n${aiText}`, sender: "bot" },
-      match ? { type: "feedback", key: match.text, sender: "bot" } : null,
-    ].filter(Boolean));
+    // Replace "Thinking with AI..." with AI's actual response
+    setMessages((prev) => {
+      const withoutThinking = prev.filter(
+        (m) => m.text !== "🤔 Thinking with AI..."
+      );
+      return [
+        ...withoutThinking,
+        { text: `🤖 AI's response:\n${aiText}`, sender: "bot" },
+        match ? { type: "feedback", key: match.text, sender: "bot" } : null,
+      ].filter(Boolean);
+    });
 
     if (!mute) speak(aiText);
     setPendingFeedback(match?.text || null);
   } catch (err) {
     console.error("Gemini error:", err);
     setMessages((prev) => [
-      ...prev.slice(0, -1),
+      ...prev.filter((m) => m.text !== "🤔 Thinking with AI..."),
       { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" },
     ]);
   } finally {
@@ -215,8 +228,7 @@ Use Markdown:
   }
 };
 
-
-
+  
   // --- LOGIN UI ---
   if (!user) {
     return (
