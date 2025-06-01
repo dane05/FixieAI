@@ -173,14 +173,14 @@ Return the improved version only.`;
 
       // Show improved solution + "Thinking with AI..." message
       setMessages((prev) => [
-        ...prev.slice(0, -1), // remove previous "Thinking with AI..." if any
+        ...prev, // remove previous "Thinking with AI..." if any
         { text: `🛠 Improved user-submitted solution:\n${improvedText}`, sender: "bot" },
         { text: "🤔 Thinking with AI...", sender: "bot" },
       ]);
     } else {
       // No solution to improve: just show "Thinking with AI..."
       setMessages((prev) => [
-        ...prev.slice(0, -1),
+        ...prev,
         { text: "🤔 Thinking with AI...", sender: "bot" },
       ]);
     }
