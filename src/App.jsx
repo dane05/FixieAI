@@ -157,10 +157,6 @@ const handleSend = async () => {
   // Normal query flow
   const match = search(msg)[0];
 
-  setMessages((prev) => [
-    ...prev,
-    // We don't add "Thinking with AI..." here anymore since we add it after improved solution
-  ]);
   setLoading(true);
 
   try {
