@@ -184,37 +184,129 @@ Respond with the improved version together with the user submitted solution.`;
 
       const aiPrompt = match
         ? `You are a helpful assistant in the semiconductor industry. The user asked: "${msg}". 
-Here is a user-submitted solution to consider: "${match.solution || "N/A"}".
-Now provide your own professional and detailed response.`
-        : `You are a helpful and technically knowledgeable assistant specialized in the semiconductor industry. 
-Respond in clear Markdown. Use:
-- **bold** for technical terms,
-- *italics* for emphasis,
-- and bullet points for lists or steps. 
-Query: "${msg}"`;
+const handleSend = async () => {
+  const msg = input.trim();
+  if (!msg) return;
 
-      const aiResult = await gemini.generateContent(aiPrompt);
-      const aiText = aiResult.response.text().trim();
-      combinedResponse += `🤖 AI's response:\n${aiText}`;
-if (!teachMode) {
-setMessages(prev => [
-  ...prev.slice(0, -1),
-  { text: combinedResponse, sender: "bot" },
-  match ? { type: "feedback", key: match?.text || msg, sender: "bot" } : null,
-].filter(Boolean));
-}
-if (!mute) speak(aiText);
-setPendingFeedback(match?.text || null);
-    } catch (err) {
-      console.error("Gemini error:", err);
+  const lower = msg.toLowerCase();
+  setMessages((prev) => [...prev, { text: msg, sender: "user" }]);
+  setInput("");
+
+  if (lower === "clear") {
+    setMessages([]);
+    return;
+  }
+
+  if (lower === "solution") {
+    setTeachMode(true);
+    setTempProblem("");
+    setMessages((prev) => [
+      ...prev,
+      { text: "Sure! Tell me the problem.", sender: "bot" },
+    ]);
+    return;
+  }
+
+  if (teachMode && !tempProblem) {
+    setTempProblem(msg);
+    setMessages((prev) => [
+      ...prev,
+      { text: "Thanks! Now give me the solution.", sender: "bot" },
+    ]);
+    return;
+  }
+
+  if (teachMode && tempProblem) {
+    const knowledge = {
+      solution: msg,
+      submittedBy: user.name,
+      confidence: 50,
+      success: 0,
+      failure: 0,
+    };
+
+    await setDoc(doc(db, "chatbotKnowledge", tempProblem.toLowerCase()), knowledge);
+    if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
+
+    setMessages((prev) => [
+      ...prev,
+      { text: `✅ Learned how to solve "${tempProblem}"!`, sender: "bot" },
+    ]);
+
+    await loadFaq();
+    const userDocRef = doc(db, "users", user.name);
+    await updateDoc(userDocRef, { points: increment(5) });
+    const updatedSnap = await getDoc(userDocRef);
+    setUser(updatedSnap.data());
+
+    setTeachMode(false);
+    setTempProblem("");
+    return;
+  }
+
+  // Normal query flow
+  const match = search(msg)[0];
+  setMessages((prev) => [
+    ...prev,
+    { text: "🤔 Thinking with AI...", sender: "bot" },
+  ]);
+  setLoading(true);
+
+  try {
+    if (match?.solution) {
+      const improvePrompt = `
+You are a semiconductor expert. Improve the following user-submitted solution for clarity, technical accuracy, and professionalism:
+
+"${match.solution}"
+
+Return the improved version only.`;
+
+      const improveResult = await gemini.generateContent(improvePrompt);
+      const improvedText = improveResult.response.text().trim();
+
+      // Add improved user solution as a separate message
       setMessages((prev) => [
-        ...prev.slice(0, -1),
-        { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" },
+        ...prev.slice(0, -1), // remove "Thinking with AI..."
+        { text: `🛠 Improved user-submitted solution:\n${improvedText}`, sender: "bot" },
       ]);
-    } finally {
-      setLoading(false);
+    } else {
+      // Remove "Thinking with AI..." if no user solution to improve
+      setMessages((prev) => prev.slice(0, -1));
     }
-  };
+
+    const aiPrompt = match
+      ? `You are an AI assistant in semiconductor support. The user asked: "${msg}". 
+Consider this user-submitted solution: "${match.solution}".
+Provide your own accurate and helpful explanation.`
+      : `You are an expert in semiconductor troubleshooting. Respond clearly and concisely to:
+"${msg}"
+Use Markdown:
+- **bold** for terms
+- *italics* for emphasis
+- bullets for steps`;
+
+    const aiResult = await gemini.generateContent(aiPrompt);
+    const aiText = aiResult.response.text().trim();
+
+    // Add AI response as a separate message after the improved solution
+    setMessages((prev) => [
+      ...prev,
+      { text: `🤖 AI's response:\n${aiText}`, sender: "bot" },
+      match ? { type: "feedback", key: match.text, sender: "bot" } : null,
+    ].filter(Boolean));
+
+    if (!mute) speak(aiText);
+    setPendingFeedback(match?.text || null);
+  } catch (err) {
+    console.error("Gemini error:", err);
+    setMessages((prev) => [
+      ...prev.slice(0, -1),
+      { text: "⚠️ AI is unavailable. Try again later.", sender: "bot" },
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // --- LOGIN UI ---
   if (!user) {
