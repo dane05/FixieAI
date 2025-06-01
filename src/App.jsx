@@ -162,14 +162,11 @@ const handleSend = async () => {
   try {
     if (match?.solution) {
       const improvePrompt = `
-You are a semiconductor support expert. A correct solution was submitted by an Equipment Engineer.
+You are a semiconductor expert. Improve the following user-submitted solution for clarity, technical accuracy, and professionalism:
 
-Refine the following solution to enhance clarity, technical precision, and professional tone. Keep the meaning intact, and make it suitable for other engineers to reference.
-
-Solution:
 "${match.solution}"
 
-Return only the improved version. Do not include explanations, notes, or commentary.`;
+Return the improved version only.`;
 
       const improveResult = await gemini.generateContent(improvePrompt);
       const improvedText = improveResult.response.text().trim();
@@ -188,27 +185,16 @@ Return only the improved version. Do not include explanations, notes, or comment
       ]);
     }
 
-const aiPrompt = match
-  ? `You are an AI assistant specializing in semiconductor equipment troubleshooting. The user asked:
-
+    const aiPrompt = match
+      ? `You are an AI assistant in semiconductor support. The user asked: "${msg}". 
+Consider this user-submitted solution: "${match.solution}".
+Provide your own accurate and helpful explanation.`
+      : `You are an expert in semiconductor troubleshooting. Respond clearly and concisely to:
 "${msg}"
-
-A correct solution was previously submitted by an Equipment Engineer:
-"${match.solution}"
-
-Rephrase and expand this solution to improve clarity, provide additional context, and ensure it’s technically accurate and professional. Your response should be helpful to other equipment or process engineers. Use Markdown formatting:
-- **bold** for key technical terms
+Use Markdown:
+- **bold** for terms
 - *italics* for emphasis
-- Bullet points for steps or structured lists`
-  : `You are an expert in semiconductor troubleshooting. Respond clearly and concisely to the following query:
-
-"${msg}"
-
-Use Markdown formatting:
-- **bold** for technical terms
-- *italics* for emphasis
-- Bullet points for clear step-by-step guidance`;
-
+- bullets for steps`;
 
     const aiResult = await gemini.generateContent(aiPrompt);
     const aiText = aiResult.response.text().trim();
