@@ -92,98 +92,6 @@ useEffect(() => {
 
   
   // ---- SEND MESSAGE FUNCTION ----
-  const handleSend = async () => {
-    const msg = input.trim();
-    if (!msg) return;
-
-    const lower = msg.toLowerCase();
-    setMessages((prev) => [...prev, { text: msg, sender: "user" }]);
-    setInput("");
-
-if (msg.toLowerCase() === "clear") {
-  setMessages([]);
-  setInput("");
-  return;
-}    
-    if (lower === "solution") {
-      setTeachMode(true);
-      setTempProblem("");
-      setMessages((prev) => [
-        ...prev,
-        { text: "Sure! Tell me the problem.", sender: "bot" },
-      ]);
-      return;
-    }
-
-    if (teachMode && !tempProblem) {
-      setTempProblem(msg);
-      setMessages((prev) => [
-        ...prev,
-        { text: "Thanks! Now give me the solution.", sender: "bot" },
-      ]);
-      return;
-    }
-
-    if (teachMode && tempProblem) {
-      // Save new knowledge to Firestore
-      const knowledge = {
-        solution: msg,
-        submittedBy: user.name,
-        confidence: 50,
-        success: 0,
-        failure: 0,
-      };
-      await setDoc(
-        doc(db, "chatbotKnowledge", tempProblem.toLowerCase()),
-        knowledge
-      );
-      setMessages((prev) => [
-        ...prev,
-        { text: `Learned how to solve "${tempProblem}"!`, sender: "bot" },
-      ]);
-      if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
-
-      // Reload FAQ to include new knowledge immediately
-      await loadFaq();
-
-      // Increment points by 5 in Firestore
-      const userDocRef = doc(db, "users", user.name);
-      await updateDoc(userDocRef, { points: increment(5) });
-
-      // Fetch updated points to sync local user state
-      const updatedSnap = await getDoc(userDocRef);
-      setUser(updatedSnap.data());
-
-      setTeachMode(false);
-      setTempProblem("");
-      return;
-    }
-
-    // Search knowledge base for matching solution
-    const match = search(msg)[0];
-
-    setMessages((prev) => [...prev, { text: "Thinking with AI... 🤖", sender: "bot" }]);
-    setLoading(true);
-
-    try {
-      let combinedResponse = "";
-
-      if (match?.solution) {
-        const improvePrompt = `
-You are an expert in semiconductor engineering.
-Improve the following user-submitted solution for clarity, precision, and technical detail. 
-Keep it concise, professional, and actionable:
-
-"${match.solution}"
-
-Respond with the improved version together with the user submitted solution.`;
-        const improveResult = await gemini.generateContent(improvePrompt);
-        const improvedUserSolution = improveResult.response.text().trim();
-        combinedResponse += `🛠 Improved user-submitted solution:\n${improvedUserSolution}\n\n`;
-      }
-
-      const aiPrompt = match
-        ? `You are a helpful assistant in the semiconductor industry. The user asked: "${msg}". 
 const handleSend = async () => {
   const msg = input.trim();
   if (!msg) return;
@@ -224,16 +132,18 @@ const handleSend = async () => {
       success: 0,
       failure: 0,
     };
-
-    await setDoc(doc(db, "chatbotKnowledge", tempProblem.toLowerCase()), knowledge);
-    if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
-
+    await setDoc(
+      doc(db, "chatbotKnowledge", tempProblem.toLowerCase()),
+      knowledge
+    );
     setMessages((prev) => [
       ...prev,
-      { text: `✅ Learned how to solve "${tempProblem}"!`, sender: "bot" },
+      { text: `Learned how to solve "${tempProblem}"!`, sender: "bot" },
     ]);
+    if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
 
     await loadFaq();
+
     const userDocRef = doc(db, "users", user.name);
     await updateDoc(userDocRef, { points: increment(5) });
     const updatedSnap = await getDoc(userDocRef);
@@ -244,11 +154,11 @@ const handleSend = async () => {
     return;
   }
 
-  // Normal query flow
   const match = search(msg)[0];
+
   setMessages((prev) => [
     ...prev,
-    { text: "🤔 Thinking with AI...", sender: "bot" },
+    { text: "Thinking with AI... 🤖", sender: "bot" },
   ]);
   setLoading(true);
 
@@ -264,14 +174,12 @@ Return the improved version only.`;
       const improveResult = await gemini.generateContent(improvePrompt);
       const improvedText = improveResult.response.text().trim();
 
-      // Add improved user solution as a separate message
       setMessages((prev) => [
         ...prev.slice(0, -1), // remove "Thinking with AI..."
         { text: `🛠 Improved user-submitted solution:\n${improvedText}`, sender: "bot" },
       ]);
     } else {
-      // Remove "Thinking with AI..." if no user solution to improve
-      setMessages((prev) => prev.slice(0, -1));
+      setMessages((prev) => prev.slice(0, -1)); // remove placeholder
     }
 
     const aiPrompt = match
@@ -288,7 +196,6 @@ Use Markdown:
     const aiResult = await gemini.generateContent(aiPrompt);
     const aiText = aiResult.response.text().trim();
 
-    // Add AI response as a separate message after the improved solution
     setMessages((prev) => [
       ...prev,
       { text: `🤖 AI's response:\n${aiText}`, sender: "bot" },
@@ -307,6 +214,8 @@ Use Markdown:
     setLoading(false);
   }
 };
+
+
 
   // --- LOGIN UI ---
   if (!user) {
