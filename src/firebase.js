@@ -16,4 +16,4 @@ export const db = getFirestore(app);
 
 // Gemini AI setup
 const ai = getAI(app, { backend: new GoogleAIBackend() });
-export const gemini = getGenerativeModel(ai, { model: "gemini-2.0" });
+export const gemini = getGenerativeModel(ai, { model: "gemini-1.5" });
