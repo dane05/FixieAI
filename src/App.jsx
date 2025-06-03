@@ -31,6 +31,7 @@ const App = () => {
   const [teachMode, setTeachMode] = useState(false);
   const [tempProblem, setTempProblem] = useState("");
   const [mute, setMute] = useState(false);
+  const [inputFromVoice, setInputFromVoice] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
   const [loading, setLoading] = useState(false); // for "thinking" message
   const [nameInput, setNameInput] = useState("");
@@ -38,6 +39,7 @@ const App = () => {
   const { speak } = useSpeechSynthesis();
   const { startListening } = useVoiceRecognition((transcript) => {
     setInput(transcript);
+    setInputFromVoice(fromVoice);
     setTimeout(handleSend, 100);
   });
 
@@ -224,7 +226,11 @@ Use Markdown formatting:
       ].filter(Boolean);
     });
 
-    if (!mute) speak(aiText);
+if (!mute || inputFromVoice) {
+  speak(aiText);
+  setInputFromVoice(false); // reset the flag after speaking
+}
+    
     setPendingFeedback(match?.text || null);
   } catch (err) {
     console.error("Gemini error:", err);
