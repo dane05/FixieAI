@@ -13,7 +13,7 @@ const useVoiceRecognition = (onResult) => {
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (e) => {
-      onResult(e.results[0][0].transcript);
+      onResult(e.results[0][0].transcript, true);
     };
 
     recognition.onerror = (e) => {
