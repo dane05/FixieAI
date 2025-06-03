@@ -171,7 +171,7 @@ Refine the following solution to enhance clarity, technical precision, and profe
 Solution:
 "${match.solution}"
 
-Return the improved version together with the submitted solution, Provide Explanation each solutions on why that solution is effective.`;
+Return the improved version together with the submitted solution.`;
 
       const improveResult = await gemini.generateContent(improvePrompt);
       const improvedText = improveResult.response.text().trim();
