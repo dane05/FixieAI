@@ -92,30 +92,78 @@ useEffect(() => {
   }
 }, [user]);
 
-  const callGeminiWithRetry = async (prompt, retries = 3, delay = 1000) => {
-  try {
-    return await gemini.generateContent(prompt);
-  } catch (err) {
-    if (retries === 0) throw err;
-    console.warn(`API call failed, retrying in ${delay}ms...`, err);
-    await new Promise((res) => setTimeout(res, delay));
-    return callGeminiWithRetry(prompt, retries - 1, delay * 2);
-  }
-};
   
   // ---- SEND MESSAGE FUNCTION ----
 const handleSend = async () => {
   const msg = input.trim();
   if (!msg) return;
 
+  const lower = msg.toLowerCase();
   setMessages((prev) => [...prev, { text: msg, sender: "user" }]);
   setInput("");
+
+  if (lower === "clear") {
+    setMessages([]);
+    return;
+  }
+
+  if (lower === "solution") {
+    setTeachMode(true);
+    setTempProblem("");
+    setMessages((prev) => [
+      ...prev,
+      { text: "Sure! Tell me the problem.", sender: "bot" },
+    ]);
+    return;
+  }
+
+  if (teachMode && !tempProblem) {
+    setTempProblem(msg);
+    setMessages((prev) => [
+      ...prev,
+      { text: "Thanks! Now give me the solution.", sender: "bot" },
+    ]);
+    return;
+  }
+
+  if (teachMode && tempProblem) {
+    const knowledge = {
+      solution: msg,
+      submittedBy: user.name,
+      confidence: 50,
+      success: 0,
+      failure: 0,
+    };
+
+    await setDoc(doc(db, "chatbotKnowledge", tempProblem.toLowerCase()), knowledge);
+
+    setMessages((prev) => [
+      ...prev,
+      { text: `✅ Learned how to solve "${tempProblem}"!`, sender: "bot" },
+    ]);
+
+    if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
+
+    await loadFaq();
+
+    const userDocRef = doc(db, "users", user.name);
+    await updateDoc(userDocRef, { points: increment(5) });
+    const updatedSnap = await getDoc(userDocRef);
+    setUser(updatedSnap.data());
+
+    setTeachMode(false);
+    setTempProblem("");
+    return;
+  }
+
+  // Normal query flow
+  const match = search(msg)[0];
 
   setLoading(true);
 
   try {
     if (match?.solution) {
-      const improvePrompt = `
+const improvePrompt = `
 You are a semiconductor equipment support expert. The following solution was submitted by a knowledgeable Equipment Engineer and is correct.
 
 Your task is to refine this solution to enhance:
@@ -130,23 +178,25 @@ Solution:
 Provide the improved solution only, preserving the original intent and correctness.
 `;
 
-      const improveResult = await callGeminiWithRetry(improvePrompt);
+      const improveResult = await gemini.generateContent(improvePrompt);
       const improvedText = improveResult.response.text().trim();
 
+      // Show improved solution + "Thinking with AI..." message
       setMessages((prev) => [
-        ...prev.filter((m) => m.text !== "🤔 Thinking with AI..."),
+        ...prev, // remove previous "Thinking with AI..." if any
         { text: `🛠 Improved user-submitted solution:\n${improvedText}`, sender: "bot" },
         { text: "🤔 Thinking with AI...", sender: "bot" },
       ]);
     } else {
+      // No solution to improve: just show "Thinking with AI..."
       setMessages((prev) => [
         ...prev,
         { text: "🤔 Thinking with AI...", sender: "bot" },
       ]);
     }
 
-    const aiPrompt = match
-      ? `You are an AI assistant specializing in semiconductor equipment troubleshooting. The user asked:
+const aiPrompt = match
+  ? `You are an AI assistant specializing in semiconductor equipment troubleshooting. The user asked:
 
 "${msg}"
 
@@ -157,7 +207,7 @@ Rephrase and expand this solution to improve clarity, provide additional context
 - **bold** for key technical terms
 - *italics* for emphasis
 - Bullet points for steps or structured lists`
-      : `You are an expert in semiconductor troubleshooting. Respond clearly and concisely to the following query:
+  : `You are an expert in semiconductor troubleshooting. Respond clearly and concisely to the following query:
 
 "${msg}"
 
@@ -166,9 +216,10 @@ Use Markdown formatting:
 - *italics* for emphasis
 - Bullet points for clear step-by-step guidance`;
 
-    const aiResult = await callGeminiWithRetry(aiPrompt);
+    const aiResult = await gemini.generateContent(aiPrompt);
     const aiText = aiResult.response.text().trim();
 
+    // Replace "Thinking with AI..." with AI's actual response
     setMessages((prev) => {
       const withoutThinking = prev.filter(
         (m) => m.text !== "🤔 Thinking with AI..."
@@ -180,11 +231,11 @@ Use Markdown formatting:
       ].filter(Boolean);
     });
 
-    if (!mute || inputFromVoice) {
-      speak(aiText);
-      setInputFromVoice(false);
-    }
-
+if (!mute || inputFromVoice) {
+  speak(aiText);
+  setInputFromVoice(false); // reset the flag after speaking
+}
+    
     setPendingFeedback(match?.text || null);
   } catch (err) {
     console.error("Gemini error:", err);
