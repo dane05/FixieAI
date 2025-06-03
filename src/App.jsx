@@ -164,14 +164,19 @@ const handleSend = async () => {
   try {
     if (match?.solution) {
 const improvePrompt = `
-You are a semiconductor support expert. A correct solution was submitted by an Equipment Engineer.
+You are a semiconductor equipment support expert. The following solution was submitted by a knowledgeable Equipment Engineer and is correct.
 
-Refine the following solution to enhance clarity, technical precision, and professional tone. Keep the meaning intact, and make it suitable for other engineers to reference.
+Your task is to refine this solution to enhance:
+- Clarity and readability without changing the technical meaning.
+- Professional tone suitable for an engineering audience.
+- Precise and consistent use of technical terminology.
+- Formatting that makes it easy to understand and reference, such as bullet points or numbered steps where appropriate.
 
 Solution:
 "${match.solution}"
 
-Return the improved version together with a simple explanation.`;
+Provide the improved solution only, preserving the original intent and correctness.
+`;
 
       const improveResult = await gemini.generateContent(improvePrompt);
       const improvedText = improveResult.response.text().trim();
