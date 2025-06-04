@@ -23,7 +23,7 @@ const App = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [teachMode, setTeachMode] = useState(false);
   const [tempProblem, setTempProblem] = useState("");
-  const [mute, setMute] = useState(false);
+  const [mute, setMute] = useState(true);
   const [inputFromVoice, setInputFromVoice] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
   const [nameInput, setNameInput] = useState("");
