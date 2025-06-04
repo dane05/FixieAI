@@ -195,8 +195,8 @@ Provide the improved solution only, preserving the original intent and correctne
       ]);
     }
 
-  const aiPrompt = match
-    ? `You are an AI assistant specializing in semiconductor equipment troubleshooting. The user asked:
+const aiPrompt = match
+  ? `You are an AI assistant specializing in semiconductor equipment troubleshooting. The user asked:
 
 "${msg}"
 
@@ -207,19 +207,14 @@ Rephrase and expand this solution to improve clarity, provide additional context
 - **bold** for key technical terms
 - *italics* for emphasis
 - Bullet points for steps or structured lists`
-    : `You are a semiconductor equipment troubleshooting expert. Use the structured **0S–5S Methodology** to analyze and answer the following problem:
+  : `You are an expert in semiconductor troubleshooting. Respond clearly and concisely to the following query:
 
-Problem: "${msg}"
+"${msg}"
 
-Respond with these structured steps:
-0S – **Problem Identification**: Clearly define the issue or problem at hand.  
-1S – **Identifying All Possible Causes**: List all potential causes without filtering.  
-2S – **Narrow Down Factors**: Eliminate irrelevant causes and identify likely contributors.  
-3S – **Verify Root Cause**: Use logic or data to confirm the true root cause(s).  
-4S – **Standardize**: Propose a standardized process or control to prevent recurrence.  
-5S – **Implement the Detection**: Define how future issues will be detected or flagged early.
-
-Format your response with clear headings for each step and provide practical, concise engineering insight.`;
+Use Markdown formatting:
+- **bold** for technical terms
+- *italics* for emphasis
+- Bullet points for clear step-by-step guidance`;
 
     const aiResult = await gemini.generateContent(aiPrompt);
     const aiText = aiResult.response.text().trim();
