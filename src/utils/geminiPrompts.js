@@ -31,7 +31,7 @@ Rephrase and expand this solution to improve clarity, provide additional context
 
 "${msg}"
 
-Solution must be step by step 
+
 Use Markdown formatting:
 - **bold** for technical terms
 - *italics* for emphasis
