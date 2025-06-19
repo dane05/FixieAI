@@ -17,17 +17,6 @@ import Feedback from "./components/Feedback";
 import LoginScreen from "./components/LoginScreen";
 import { extractPdfText } from "./utils/pdfUtils";
 
-const handlePdfUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  try {
-    const text = await extractPdfText(file);
-    setPdfText(text);
-  } catch (err) {
-    console.error("Error parsing PDF:", err);
-  }
-};
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -58,6 +47,19 @@ const App = () => {
   // Auth
   const { login, logout } = useAuth(setUser, setMessages);
 
+const handlePdfUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await extractPdfText(file);
+    setPdfText(text);
+  } catch (err) {
+    console.error("Error parsing PDF:", err);
+  }
+};
+
+  
   // Chatbot logic
   const { handleSend, loading } = useChatbot({
     user,
