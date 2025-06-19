@@ -153,17 +153,24 @@ const handlePdfUpload = async (e) => {
         input={input}
         setInput={setInput}
         onSend={() =>
-          handleSend(
-            input,
-            setInput,
-            inputFromVoice,
-            setInputFromVoice,
-            tempProblem,
-            setTempProblem,
-            teachMode,
-            setTeachMode
-          )
-        }
+onSend={() => {
+  if (usePdfOnly && !pdfText.trim()) {
+    alert("PDF text is still loading. Please wait a moment and try again.");
+    return;
+  }
+
+  handleSend(
+    input,
+    setInput,
+    inputFromVoice,
+    setInputFromVoice,
+    tempProblem,
+    setTempProblem,
+    teachMode,
+    setTeachMode
+  );
+}}
+
         onVoice={startListening}
         mute={mute}
         setMute={setMute}
