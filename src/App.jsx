@@ -15,6 +15,19 @@ import Suggestions from "./components/Suggestions";
 import ProfileCard from "./components/ProfileCard";
 import Feedback from "./components/Feedback";
 import LoginScreen from "./components/LoginScreen";
+import { extractPdfText } from "./utils/pdfUtils";
+
+const handlePdfUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await extractPdfText(file);
+    setPdfText(text);
+  } catch (err) {
+    console.error("Error parsing PDF:", err);
+  }
+};
 
 const App = () => {
   const [user, setUser] = useState(null);
