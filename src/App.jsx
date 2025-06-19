@@ -15,8 +15,6 @@ import Suggestions from "./components/Suggestions";
 import ProfileCard from "./components/ProfileCard";
 import Feedback from "./components/Feedback";
 import LoginScreen from "./components/LoginScreen";
-import { extractPdfText } from "./utils/pdfUtils";
-
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -29,8 +27,6 @@ const App = () => {
   const [inputFromVoice, setInputFromVoice] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
   const [nameInput, setNameInput] = useState("");
-  const [usePdfOnly, setUsePdfOnly] = useState(false);
-  const [pdfText, setPdfText] = useState(""); // extracted PDF content
 
   // Hooks for FAQ and search
   const { faq, suggestions, reload: reloadFaq } = useFaq();
@@ -47,21 +43,6 @@ const App = () => {
   // Auth
   const { login, logout } = useAuth(setUser, setMessages);
 
-const handlePdfUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  try {
-    const text = await extractPdfText(file);
-    setPdfText(text);
-    console.log("📄 Extracted PDF text:", text.slice(0, 200));
-
-  } catch (err) {
-    console.error("Error parsing PDF:", err);
-  }
-};
-
-  
   // Chatbot logic
   const { handleSend, loading } = useChatbot({
     user,
@@ -74,8 +55,6 @@ const handlePdfUpload = async (e) => {
     setTeachMode,
     setTempProblem,
     setPendingFeedback,
-    usePdfOnly,       // 👈 add this
-  pdfText           // 👈 and this
   });
 
   useEffect(() => {
@@ -113,25 +92,6 @@ const handlePdfUpload = async (e) => {
           Logout
         </button>
       </div>
-      <div className="px-4 pt-2 flex items-center gap-4">
-  <label className="text-sm font-medium">
-    <input
-      type="checkbox"
-      checked={usePdfOnly}
-      onChange={() => setUsePdfOnly(!usePdfOnly)}
-      className="mr-2"
-    />
-    Use PDF Only
-  </label>
-
-  <input
-    type="file"
-    accept="application/pdf"
-    onChange={handlePdfUpload}
-    className="text-sm"
-  />
-</div>
-
       <ChatMessages
         messages={messages}
         onFeedback={(vote) => {
@@ -149,32 +109,26 @@ const handlePdfUpload = async (e) => {
         }}
       />
       <Suggestions suggestions={suggestions} onSelect={setInput} />
-<InputControls
-  input={input}
-  setInput={setInput}
-  onSend={() => {
-    if (usePdfOnly && !pdfText.trim()) {
-      alert("PDF text is still loading. Please wait a moment and try again.");
-      return;
-    }
-
-    handleSend(
-      input,
-      setInput,
-      inputFromVoice,
-      setInputFromVoice,
-      tempProblem,
-      setTempProblem,
-      teachMode,
-      setTeachMode
-    );
-  }}
-  onVoice={startListening}
-  mute={mute}
-  setMute={setMute}
-  loading={loading}
-/>
-
+      <InputControls
+        input={input}
+        setInput={setInput}
+        onSend={() =>
+          handleSend(
+            input,
+            setInput,
+            inputFromVoice,
+            setInputFromVoice,
+            tempProblem,
+            setTempProblem,
+            teachMode,
+            setTeachMode
+          )
+        }
+        onVoice={startListening}
+        mute={mute}
+        setMute={setMute}
+        loading={loading}
+      />
     </div>
   );
 };
