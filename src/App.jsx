@@ -54,6 +54,8 @@ const handlePdfUpload = async (e) => {
   try {
     const text = await extractPdfText(file);
     setPdfText(text);
+    console.log("📄 Extracted PDF text:", text.slice(0, 200));
+
   } catch (err) {
     console.error("Error parsing PDF:", err);
   }
