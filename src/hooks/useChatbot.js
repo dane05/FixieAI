@@ -14,6 +14,8 @@ export const useChatbot = ({
   setTeachMode,
   setTempProblem,
   setPendingFeedback,
+  usePdfOnly,      // ✅ new
+  pdfText          // ✅ new
 }) => {
   const [loading, setLoading] = useState(false);
 
@@ -80,11 +82,6 @@ export const useChatbot = ({
 
       if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
 
-      // Reload FAQ to update knowledge base
-      const snap = await getDoc(doc(db, "users", user.name)); // reload user points after update
-      setUser(snap.data());
-
-      // Add points
       const userDocRef = doc(db, "users", user.name);
       await updateDoc(userDocRef, { points: increment(5) });
       const updatedSnap = await getDoc(userDocRef);
@@ -95,9 +92,28 @@ export const useChatbot = ({
       return;
     }
 
-    // Normal query flow
-    const match = search(msg)[0];
+    // ✅ PDF-only mode
+    if (usePdfOnly && pdfText) {
+      const found = pdfText.toLowerCase().includes(lower);
+      const response = found
+        ? `📄 Found something relevant in the PDF related to "${msg}".`
+        : "❌ Sorry, I couldn’t find that in the uploaded PDF.";
 
+      setMessages((prev) => [
+        ...prev,
+        { text: response, sender: "bot" },
+      ]);
+
+      if (!mute || inputFromVoice) {
+        speak(response);
+        setInputFromVoice(false);
+      }
+
+      return;
+    }
+
+    // 🌐 Normal query flow (AI + knowledge base)
+    const match = search(msg)[0];
     setLoading(true);
 
     try {
@@ -120,7 +136,6 @@ export const useChatbot = ({
       }
 
       const aiPrompt = buildAiPrompt(msg, match);
-
       const aiResult = await gemini.generateContent(aiPrompt);
       const aiText = aiResult.response.text().trim();
 
