@@ -27,6 +27,8 @@ const App = () => {
   const [inputFromVoice, setInputFromVoice] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState(null);
   const [nameInput, setNameInput] = useState("");
+  const [usePdfOnly, setUsePdfOnly] = useState(false);
+  const [pdfText, setPdfText] = useState(""); // extracted PDF content
 
   // Hooks for FAQ and search
   const { faq, suggestions, reload: reloadFaq } = useFaq();
@@ -92,6 +94,25 @@ const App = () => {
           Logout
         </button>
       </div>
+      <div className="px-4 pt-2 flex items-center gap-4">
+  <label className="text-sm font-medium">
+    <input
+      type="checkbox"
+      checked={usePdfOnly}
+      onChange={() => setUsePdfOnly(!usePdfOnly)}
+      className="mr-2"
+    />
+    Use PDF Only
+  </label>
+
+  <input
+    type="file"
+    accept="application/pdf"
+    onChange={handlePdfUpload}
+    className="text-sm"
+  />
+</div>
+
       <ChatMessages
         messages={messages}
         onFeedback={(vote) => {
