@@ -70,6 +70,8 @@ const App = () => {
     setTeachMode,
     setTempProblem,
     setPendingFeedback,
+    usePdfOnly,       // 👈 add this
+  pdfText           // 👈 and this
   });
 
   useEffect(() => {
