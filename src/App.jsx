@@ -149,33 +149,32 @@ const handlePdfUpload = async (e) => {
         }}
       />
       <Suggestions suggestions={suggestions} onSelect={setInput} />
-      <InputControls
-        input={input}
-        setInput={setInput}
-        onSend={() =>
-onSend={() => {
-  if (usePdfOnly && !pdfText.trim()) {
-    alert("PDF text is still loading. Please wait a moment and try again.");
-    return;
-  }
+<InputControls
+  input={input}
+  setInput={setInput}
+  onSend={() => {
+    if (usePdfOnly && !pdfText.trim()) {
+      alert("PDF text is still loading. Please wait a moment and try again.");
+      return;
+    }
 
-  handleSend(
-    input,
-    setInput,
-    inputFromVoice,
-    setInputFromVoice,
-    tempProblem,
-    setTempProblem,
-    teachMode,
-    setTeachMode
-  );
-}}
+    handleSend(
+      input,
+      setInput,
+      inputFromVoice,
+      setInputFromVoice,
+      tempProblem,
+      setTempProblem,
+      teachMode,
+      setTeachMode
+    );
+  }}
+  onVoice={startListening}
+  mute={mute}
+  setMute={setMute}
+  loading={loading}
+/>
 
-        onVoice={startListening}
-        mute={mute}
-        setMute={setMute}
-        loading={loading}
-      />
     </div>
   );
 };
