@@ -92,25 +92,42 @@ export const useChatbot = ({
       return;
     }
 
-    // ✅ PDF-only mode
-    if (usePdfOnly && pdfText) {
-      const found = pdfText.toLowerCase().includes(lower);
-      const response = found
-        ? `📄 Found something relevant in the PDF related to "${msg}".`
-        : "❌ Sorry, I couldn’t find that in the uploaded PDF.";
+if (usePdfOnly && pdfText) {
+  const query = msg.toLowerCase();
+  const text = pdfText.toLowerCase();
 
-      setMessages((prev) => [
-        ...prev,
-        { text: response, sender: "bot" },
-      ]);
+  const index = text.indexOf(query);
+  if (index !== -1) {
+    const snippet = pdfText.substring(
+      Math.max(0, index - 100),
+      Math.min(pdfText.length, index + 300)
+    );
 
-      if (!mute || inputFromVoice) {
-        speak(response);
-        setInputFromVoice(false);
-      }
+    const response = `📄 Found in PDF:\n\n...${snippet.trim()}...`;
 
-      return;
+    setMessages((prev) => [
+      ...prev,
+      { text: response, sender: "bot" },
+    ]);
+
+    if (!mute || inputFromVoice) {
+      speak("I found this information in the PDF.");
+      setInputFromVoice(false);
     }
+
+    return; // ✅ Prevent AI fallback
+  } else {
+    const response = "❌ Sorry, I couldn’t find that in the uploaded PDF.";
+    setMessages((prev) => [...prev, { text: response, sender: "bot" }]);
+
+    if (!mute || inputFromVoice) {
+      speak(response);
+      setInputFromVoice(false);
+    }
+
+    return;
+  }
+}
 
     // 🌐 Normal query flow (AI + knowledge base)
     const match = search(msg)[0];
