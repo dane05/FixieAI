@@ -92,11 +92,19 @@ export const useChatbot = ({
       return;
     }
 
-if (usePdfOnly && pdfText) {
+if (usePdfOnly) {
+  if (!pdfText) {
+    setMessages((prev) => [
+      ...prev,
+      { text: "⚠️ PDF is required for this mode. Please upload a file.", sender: "bot" },
+    ]);
+    return;
+  }
+
   const query = msg.toLowerCase();
   const text = pdfText.toLowerCase();
-
   const index = text.indexOf(query);
+
   if (index !== -1) {
     const snippet = pdfText.substring(
       Math.max(0, index - 100),
@@ -105,26 +113,19 @@ if (usePdfOnly && pdfText) {
 
     const response = `📄 Found in PDF:\n\n...${snippet.trim()}...`;
 
-    setMessages((prev) => [
-      ...prev,
-      { text: response, sender: "bot" },
-    ]);
+    setMessages((prev) => [...prev, { text: response, sender: "bot" }]);
 
     if (!mute || inputFromVoice) {
       speak("I found this information in the PDF.");
       setInputFromVoice(false);
     }
 
-    return; // ✅ Prevent AI fallback
+    return;
   } else {
-    const response = "❌ Sorry, I couldn’t find that in the uploaded PDF.";
-    setMessages((prev) => [...prev, { text: response, sender: "bot" }]);
-
-    if (!mute || inputFromVoice) {
-      speak(response);
-      setInputFromVoice(false);
-    }
-
+    setMessages((prev) => [
+      ...prev,
+      { text: "❌ Couldn't find that in your PDF.", sender: "bot" },
+    ]);
     return;
   }
 }
