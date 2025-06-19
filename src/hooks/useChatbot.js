@@ -14,8 +14,6 @@ export const useChatbot = ({
   setTeachMode,
   setTempProblem,
   setPendingFeedback,
-  usePdfOnly,      // ✅ new
-  pdfText          // ✅ new
 }) => {
   const [loading, setLoading] = useState(false);
 
@@ -82,6 +80,11 @@ export const useChatbot = ({
 
       if (!mute) speak(`Got it. I’ve learned how to fix ${tempProblem}.`);
 
+      // Reload FAQ to update knowledge base
+      const snap = await getDoc(doc(db, "users", user.name)); // reload user points after update
+      setUser(snap.data());
+
+      // Add points
       const userDocRef = doc(db, "users", user.name);
       await updateDoc(userDocRef, { points: increment(5) });
       const updatedSnap = await getDoc(userDocRef);
@@ -92,46 +95,9 @@ export const useChatbot = ({
       return;
     }
 
-if (usePdfOnly) {
-  if (!pdfText) {
-    setMessages((prev) => [
-      ...prev,
-      { text: "⚠️ PDF is required for this mode. Please upload a file.", sender: "bot" },
-    ]);
-    return;
-  }
-
-  const query = msg.toLowerCase();
-  const text = pdfText.toLowerCase();
-  const index = text.indexOf(query);
-
-  if (index !== -1) {
-    const snippet = pdfText.substring(
-      Math.max(0, index - 100),
-      Math.min(pdfText.length, index + 300)
-    );
-
-    const response = `📄 Found in PDF:\n\n...${snippet.trim()}...`;
-
-    setMessages((prev) => [...prev, { text: response, sender: "bot" }]);
-
-    if (!mute || inputFromVoice) {
-      speak("I found this information in the PDF.");
-      setInputFromVoice(false);
-    }
-
-    return;
-  } else {
-    setMessages((prev) => [
-      ...prev,
-      { text: "❌ Couldn't find that in your PDF.", sender: "bot" },
-    ]);
-    return;
-  }
-}
-
-    // 🌐 Normal query flow (AI + knowledge base)
+    // Normal query flow
     const match = search(msg)[0];
+
     setLoading(true);
 
     try {
@@ -154,6 +120,7 @@ if (usePdfOnly) {
       }
 
       const aiPrompt = buildAiPrompt(msg, match);
+
       const aiResult = await gemini.generateContent(aiPrompt);
       const aiText = aiResult.response.text().trim();
 
